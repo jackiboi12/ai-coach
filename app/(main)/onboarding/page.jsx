@@ -1,12 +1,16 @@
-import { industries } from '@/data/industries'
-import React from 'react'
+import { industries } from "@/data/industries";
+import { getUserOnboardingStatus } from "@/actions/user";
 
-const OnboardingPage = () => {
+const OnboardingPage = async () => {
+  const { isOnboarded } = await getUserOnboardingStatus();
+  if (isOnboarded) {
+    redirect("/dashboard ");
+  }
   return (
     <main>
-        <OnboardingForm industries={industries}/>
+      <OnboardingForm industries={industries} />
     </main>
-  )
-}
+  );
+};
 
-export default OnboardingPage
+export default OnboardingPage;
