@@ -14,22 +14,23 @@ export async function updateUser(data) {
     const result = await db.$transaction(
       async (tx) => {
         // find if industries exist
-        let industriesInsight = await tx.industry.findUnique({
+        let industriesInsight = await tx.industryInsight.findUnique({
           where: {
             industry: data.industry,
           },
         });
         // if industries are not there , create them in default
         if (!industriesInsight) {
-          industriesInsight = await tx.industriesInsight.create({
+          industriesInsight = await tx.industryInsight.create({
             data: {
               industry: data.industry,
               salaryRanges: [],
               growthRate: 0,
-              demandLevel: "Medium",
+              demandLevel: "MEDIUM",
               topSkills: [],
-              marketOutlook: "Neutral",
+              marketOutlook: "NEUTRAL",
               recommendedSkills: [],
+              keyTrends: [],
               nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             },
           });
@@ -52,7 +53,8 @@ export async function updateUser(data) {
         timeout: 10000,
       }
     );
-    return result.user;
+    // return {success:true,...result};
+    return { success: true, user: result.updatedUser };
   } catch (error) {
     console.log("Error updating user", error.message);
     throw new Error("Failed to update user");
@@ -78,11 +80,10 @@ export async function getUserOnboardingStatus() {
       },
     });
     return {
-        isOnboarded: !!user?.industry,
-    }
+      isOnboarded: !!user?.industry,
+    };
   } catch (error) {
     console.log("Error getting user onboarding status", error.message);
     throw new Error("Failed to get user onboarding status");
-    
   }
 }
