@@ -33,11 +33,14 @@ import { updateUser } from "@/actions/user";
 const OnboardingForm = ({ industries }) => {
   const router = useRouter();
   const [selectedIndustry, setSelectedIndustry] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
 
   const {
     loading: updateLoading,
     fn: updateUserFn,
     data: updateResult,
+    error: updateError,
   } = useFetch(updateUser);
 
   const {
@@ -46,22 +49,42 @@ const OnboardingForm = ({ industries }) => {
     formState: { errors },
     setValue,
     watch,
+    getValues,
   } = useForm({
     resolver: zodResolver(onboardingSchema),
   });
 
   const onSubmit = async (values) => {
     try {
+      setErrorMessage(null);
+      setDebugInfo(null);
+
       const formattedIndustry = `${values.industry}-${values.subIndustry
         .toLowerCase()
         .replace(/ /g, "-")}`;
 
-      await updateUserFn({
+      console.log("Submitting profile data:", {
         ...values,
         industry: formattedIndustry,
       });
+
+      const result = await updateUserFn({
+        ...values,
+        industry: formattedIndustry,
+      });
+
+      console.log("Profile update result:", result);
+      setDebugInfo(result);
+
+      if (result && !result.success) {
+        setErrorMessage(result.error || "Failed to update profile");
+        toast.error(result.error || "Failed to update profile");
+      }
     } catch (error) {
       console.error("Onboarding error:", error);
+      setErrorMessage(error.message || "Failed to complete profile");
+      toast.error("Failed to complete profile. Please try again.");
+      setDebugInfo(error);
     }
   };
 
@@ -70,8 +93,20 @@ const OnboardingForm = ({ industries }) => {
       toast.success("Profile completed successfully!");
       router.push("/dashboard");
       router.refresh();
+    } else if (updateResult && !updateResult.success && !updateLoading) {
+      toast.error(updateResult.error || "Failed to complete profile");
+      setErrorMessage(updateResult.error || "Failed to complete profile");
     }
-  }, [updateResult, updateLoading]);
+  }, [updateResult, updateLoading, router]);
+
+  // Also show error if updateError exists
+  useEffect(() => {
+    if (updateError) {
+      toast.error(updateError.message || "Failed to complete profile");
+      setErrorMessage(updateError.message || "Failed to complete profile");
+      setDebugInfo(updateError);
+    }
+  }, [updateError]);
 
   const watchIndustry = watch("industry");
 
@@ -88,6 +123,24 @@ const OnboardingForm = ({ industries }) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {errorMessage && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">Error:</p>
+              <p>{errorMessage}</p>
+            </div>
+          )}
+
+          {debugInfo && (
+            <details className="mb-4 p-2 bg-slate-100 rounded">
+              <summary className="cursor-pointer font-mono text-xs">
+                Debug info (click to expand)
+              </summary>
+              <pre className="mt-2 p-2 bg-slate-200 rounded overflow-auto text-xs">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </details>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="industry">Industry</Label>

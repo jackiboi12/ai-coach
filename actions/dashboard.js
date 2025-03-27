@@ -15,9 +15,9 @@ export const generateAIInsights = async (industry) => {
               { "role": "string", "min": number, "max": number, "median": number, "location": "string" }
             ],
             "growthRate": number,
-            "demandLevel": "High" | "Medium" | "Low",
+            "demandLevel": "HIGH" | "MEDIUM" | "LOW",
             "topSkills": ["skill1", "skill2"],
-            "marketOutlook": "Positive" | "Neutral" | "Negative",
+            "marketOutlook": "POSITIVE" | "NEUTRAL" | "NEGATIVE",
             "keyTrends": ["trend1", "trend2"],
             "recommendedSkills": ["skill1", "skill2"]
           }
@@ -26,14 +26,45 @@ export const generateAIInsights = async (industry) => {
           Include at least 5 common roles for salary ranges.
           Growth rate should be a percentage.
           Include at least 5 skills and trends.
+          IMPORTANT: Use UPPERCASE for demandLevel and marketOutlook values.
         `;
 
-  const result = await model.generateContent(prompt);
-  const response = result.response;
-  const text = response.text();
-  const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
+  try {
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+    const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
 
-  return JSON.parse(cleanedText);
+    // Parse the JSON response
+    const parsedData = JSON.parse(cleanedText);
+
+    // Ensure values match enums
+    const validDemandLevels = ["HIGH", "MEDIUM", "LOW"];
+    const validMarketOutlooks = ["POSITIVE", "NEUTRAL", "NEGATIVE"];
+
+    // Default to MEDIUM/NEUTRAL if invalid values are provided
+    if (!validDemandLevels.includes(parsedData.demandLevel)) {
+      parsedData.demandLevel = "MEDIUM";
+    }
+
+    if (!validMarketOutlooks.includes(parsedData.marketOutlook)) {
+      parsedData.marketOutlook = "NEUTRAL";
+    }
+
+    return parsedData;
+  } catch (error) {
+    console.error("Error generating AI insights:", error);
+    // Return default values if AI generation fails
+    return {
+      salaryRanges: [],
+      growthRate: 0,
+      demandLevel: "MEDIUM",
+      topSkills: [],
+      marketOutlook: "NEUTRAL",
+      keyTrends: [],
+      recommendedSkills: [],
+    };
+  }
 };
 
 export async function getIndustryInsights() {

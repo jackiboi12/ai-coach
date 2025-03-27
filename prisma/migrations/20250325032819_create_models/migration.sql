@@ -69,7 +69,7 @@ CREATE TABLE "IndustryInsight" (
     "industry" TEXT NOT NULL,
     "salaryRanges" JSONB[],
     "growthRate" DOUBLE PRECISION NOT NULL,
-    "demandLevel" "DemandLevel" NOT NULL,
+    "DemandLevel" "DemandLevel" NOT NULL,
     "topSkills" TEXT[],
     "marketOutlook" "MarketOutlook" NOT NULL,
     "keyTrends" TEXT[],
