@@ -23,14 +23,28 @@ import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
 import { entriesToMarkdown } from "@/app/lib/helper";
 import { resumeSchema } from "@/app/lib/schema";
-import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
-// import html2pdf from "html2pdf.js";
+
 
 export default function ResumeBuilder({ initialContent }) {
   const [activeTab, setActiveTab] = useState("edit");
   const [previewContent, setPreviewContent] = useState(initialContent);
   const { user } = useUser();
   const [resumeMode, setResumeMode] = useState("preview");
+  // Add state variable for html2pdf module
+  const [html2pdfModule, setHtml2pdfModule] = useState(null);
+
+  // Load html2pdf dynamically on client side
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      import("html2pdf.js")
+        .then((module) => {
+          setHtml2pdfModule(module.default || module);
+        })
+        .catch((err) => {
+          console.error("Failed to load html2pdf module:", err);
+        });
+    }
+  }, []);
 
   const {
     control,
@@ -113,21 +127,72 @@ export default function ResumeBuilder({ initialContent }) {
 
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Update generatePDF function to use the dynamically loaded module
   const generatePDF = async () => {
     setIsGenerating(true);
     try {
+      // Dynamically import html2pdf only when needed
+      const html2pdf = (await import("html2pdf.js")).default;
+
+      if (!html2pdf) {
+        toast.error("PDF generation module failed to load. Please try again.");
+        return;
+      }
+
       const element = document.getElementById("resume-pdf");
+      if (!element) {
+        toast.error("Could not find resume content for PDF generation");
+        return;
+      }
+
+      // Add style overrides to handle unsupported color functions
+      const styleElement = document.createElement("style");
+      styleElement.innerHTML = `
+        #resume-pdf * {
+          color: #000000 !important;
+          background-color: #ffffff !important;
+          border-color: #000000 !important;
+          text-decoration-color: #000000 !important;
+          /* Override any oklch colors */
+          --gradient-color-1: #000000 !important;
+          --gradient-color-2: #333333 !important;
+        }
+        #resume-pdf h1, #resume-pdf h2, #resume-pdf h3 {
+          color: #000000 !important;
+        }
+        #resume-pdf a {
+          color: #0000FF !important;
+        }
+        #resume-pdf li::marker {
+          color: #000000 !important;
+        }
+      `;
+      element.appendChild(styleElement);
+
       const opt = {
         margin: [15, 15],
         filename: "resume.pdf",
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
+        html2canvas: {
+          scale: 2,
+          logging: true,
+          useCORS: true,
+          letterRendering: true,
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       };
 
       await html2pdf().set(opt).from(element).save();
+
+      // Clean up the temporary style element
+      element.removeChild(styleElement);
+
+      toast.success("PDF generated successfully!");
     } catch (error) {
       console.error("PDF generation error:", error);
+      toast.error(
+        "Failed to generate PDF: " + (error.message || "Unknown error")
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -157,7 +222,7 @@ export default function ResumeBuilder({ initialContent }) {
           <Button
             variant="destructive"
             // onClick={handleSubmit(onSubmit)}
-            onClick = {onSubmit}
+            onClick={onSubmit}
             disabled={isSaving}
           >
             {isSaving ? (
